@@ -21,11 +21,13 @@ import {
   mapProject,
   mapNotification,
   mapActivity,
+  mapOrganization,
 } from "@/lib/mappers";
 import {
   ActivityEntry,
   AppNotification,
   Member,
+  Organization,
   Project,
   Role,
   Task,
@@ -66,9 +68,12 @@ interface AppState {
   role: Role;
   actualRole: Role;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   canSwitchRole: boolean;
   switchRole: (role: Role) => void;
   members: Member[];
+  organizations: Organization[];
+  createOrganization: (name: string) => Promise<void>;
   tasks: Task[];
   projects: Project[];
   notifications: AppNotification[];
@@ -144,6 +149,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("*").order("name");
       return (data ?? []).map(mapMember);
+    },
+  });
+
+  // ---- Organizations ------------------------------------------------------
+  const { data: organizations = [] } = useQuery({
+    queryKey: ["organizations"],
+    enabled,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("*")
+        .order("name");
+      return (data ?? []).map(mapOrganization);
     },
   });
 
@@ -240,9 +258,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Actual role from the profile vs. the role the admin is currently *viewing*.
   // Only real admins may preview the member view; members are locked to "user".
   const actualRole: Role = profile?.role ?? "user";
-  const canSwitchRole = actualRole === "admin";
-  const role: Role = canSwitchRole ? viewAs ?? "admin" : "user";
-  const isAdmin = role === "admin";
+  const canSwitchRole = actualRole === "admin" || actualRole === "super_admin";
+  const role: Role = canSwitchRole ? viewAs ?? actualRole : "user";
+  const isAdmin = role === "admin" || role === "super_admin";
+  const isSuperAdmin = role === "super_admin";
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   // Reset the view override whenever the signed-in account changes.
@@ -398,6 +417,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     qc.invalidateQueries({ queryKey: ["members"] });
   }
 
+  async function createOrganization(name: string) {
+    const { error } = await supabase
+      .from("organizations")
+      .insert({ name, created_by: userId });
+    if (error) throw new Error(error.message);
+    qc.invalidateQueries({ queryKey: ["organizations"] });
+  }
+
   async function markNotificationRead(id: string) {
     qc.setQueryData<AppNotification[]>(["notifications"], (old) =>
       (old ?? []).map((n) => (n.id === id ? { ...n, read: true } : n))
@@ -428,11 +455,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     role,
     actualRole,
     isAdmin,
+    isSuperAdmin,
     canSwitchRole,
     switchRole: (r: Role) => {
       if (canSwitchRole) setViewAs(r);
     },
     members,
+    organizations,
+    createOrganization,
     tasks,
     projects,
     notifications,

@@ -10,9 +10,9 @@ import { Avatar } from "@/components/ui/avatar";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { isAdmin } = useApp();
+  const { isAdmin, role } = useApp();
   const items = NAV_ITEMS.filter(
-    (i) => i.primaryMobile && i.roles.includes(isAdmin ? "admin" : "user")
+    (i) => i.primaryMobile && i.roles.includes(role)
   ).slice(0, 4);
 
   return (
@@ -50,10 +50,8 @@ export function MobileDrawer({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAdmin, currentUser, signOut } = useApp();
-  const items = NAV_ITEMS.filter((i) =>
-    i.roles.includes(isAdmin ? "admin" : "user")
-  );
+  const { isAdmin, role, currentUser, signOut } = useApp();
+  const items = NAV_ITEMS.filter((i) => i.roles.includes(role));
 
   if (!currentUser) return null;
 

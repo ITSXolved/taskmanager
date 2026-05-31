@@ -1,7 +1,7 @@
 // Hand-written types mirroring the Phase 2 schema.
 // Regenerate anytime with: supabase gen types typescript --linked > src/lib/database.types.ts
 
-export type Role = "admin" | "user";
+export type Role = "super_admin" | "admin" | "user";
 export type DbPriority = "critical" | "high" | "medium" | "low";
 export type DbTaskStatus = "not_started" | "in_progress" | "in_review" | "done";
 export type DbProjectStatus = "planning" | "active" | "on_hold" | "completed";
@@ -21,8 +21,17 @@ export type ProfileRow = {
   avatar_url: string | null;
   title: string | null;
   phone: string | null;
+  org_id: string | null;
+  manager_id: string | null;
   is_active: boolean;
   must_change_password: boolean;
+  created_at: string;
+}
+
+export type OrganizationRow = {
+  id: string;
+  name: string;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -129,6 +138,7 @@ export type Database = {
   public: {
     Tables: {
       profiles: Row<ProfileRow>;
+      organizations: Row<OrganizationRow>;
       projects: Row<ProjectRow>;
       tasks: Row<TaskRow>;
       task_assignees: Row<TaskAssigneeRow>;

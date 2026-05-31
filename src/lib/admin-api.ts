@@ -24,6 +24,8 @@ export function createUser(input: {
   role: Role;
   title?: string;
   phone?: string;
+  org_id?: string | null;
+  manager_id?: string | null;
 }): Promise<{ user_id: string; email: string; name: string; tempPassword: string }> {
   return post("/api/admin/create-user", input);
 }

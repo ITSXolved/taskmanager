@@ -20,6 +20,13 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   DropdownMenu,
@@ -42,12 +49,26 @@ import { credentialsMessage, whatsappUrl } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
 export default function TeamPage() {
-  const { members, isAdmin, tasks, refreshMembers } = useApp();
+  const { members, isAdmin, isSuperAdmin, organizations, tasks, refreshMembers } =
+    useApp();
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<Member | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [waBusy, setWaBusy] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Member | null>(null);
+  const [orgFilter, setOrgFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  const orgName = (id?: string | null) =>
+    organizations.find((o) => o.id === id)?.name ?? "—";
+
+  const visibleMembers = members.filter((m) => {
+    if (orgFilter !== "all" && m.orgId !== orgFilter) return false;
+    if (roleFilter === "admin" && !(m.role === "admin" || m.role === "super_admin"))
+      return false;
+    if (roleFilter === "user" && m.role !== "user") return false;
+    return true;
+  });
 
   // Resets the member's password to a fresh temp one and opens WhatsApp with
   // the credentials + login URL. The tab is opened synchronously (before the
@@ -123,11 +144,36 @@ export default function TeamPage() {
       key: "role",
       header: "Role",
       render: (m) => (
-        <Badge variant={m.role === "admin" ? "default" : "secondary"}>
-          {m.role === "admin" ? "Admin" : "Member"}
+        <Badge
+          variant={
+            m.role === "super_admin"
+              ? "warning"
+              : m.role === "admin"
+                ? "default"
+                : "secondary"
+          }
+        >
+          {m.role === "super_admin"
+            ? "Super Admin"
+            : m.role === "admin"
+              ? "Admin"
+              : "Member"}
         </Badge>
       ),
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            key: "org",
+            header: "Organization",
+            sortable: true,
+            sortValue: (m: Member) => orgName(m.orgId),
+            render: (m: Member) => (
+              <span className="text-sm">{orgName(m.orgId)}</span>
+            ),
+          } as Column<Member>,
+        ]
+      : []),
     {
       key: "status",
       header: "Status",
@@ -267,7 +313,43 @@ export default function TeamPage() {
         }
       />
 
-      <DataTable columns={columns} data={members} onRowClick={open} pageSize={10} />
+      {isSuperAdmin && (
+        <Card className="mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+          <Select value={orgFilter} onValueChange={setOrgFilter}>
+            <SelectTrigger className="sm:w-56">
+              <SelectValue placeholder="All organizations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All organizations</SelectItem>
+              {organizations.map((o) => (
+                <SelectItem key={o.id} value={o.id}>
+                  {o.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="admin">Admins</SelectItem>
+              <SelectItem value="user">Members</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground sm:ml-auto">
+            {visibleMembers.length} member{visibleMembers.length === 1 ? "" : "s"}
+          </span>
+        </Card>
+      )}
+
+      <DataTable
+        columns={columns}
+        data={visibleMembers}
+        onRowClick={open}
+        pageSize={10}
+      />
 
       <AddMemberModal open={addOpen} onOpenChange={setAddOpen} />
       <MemberDetailPanel

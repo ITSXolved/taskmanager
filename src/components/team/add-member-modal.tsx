@@ -32,12 +32,13 @@ export function AddMemberModal({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const { refreshMembers } = useApp();
+  const { refreshMembers, isSuperAdmin, organizations, currentUser } = useApp();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [title, setTitle] = useState("");
   const [role, setRole] = useState<Role>("user");
+  const [orgId, setOrgId] = useState("");
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState<{
     name: string;
@@ -73,7 +74,20 @@ export function AddMemberModal({
     }
     setSaving(true);
     try {
-      const res = await createUser({ name, email, role, title, phone });
+      const resolvedRole: Role = isSuperAdmin ? role : "user";
+      const resolvedOrg = isSuperAdmin
+        ? orgId || null
+        : currentUser?.orgId ?? null;
+      const resolvedManager = isSuperAdmin ? null : currentUser?.id ?? null;
+      const res = await createUser({
+        name,
+        email,
+        role: resolvedRole,
+        title,
+        phone,
+        org_id: resolvedOrg,
+        manager_id: resolvedManager,
+      });
       setCreated({
         name: res.name,
         email: res.email,
@@ -94,6 +108,7 @@ export function AddMemberModal({
     setPhone("");
     setTitle("");
     setRole("user");
+    setOrgId("");
     setCreated(null);
     onOpenChange(false);
   }
@@ -204,19 +219,39 @@ export function AddMemberModal({
                     placeholder="Engineer"
                   />
                 </div>
+                {isSuperAdmin && (
+                  <div className="space-y-1.5">
+                    <Label>Role</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Member</SelectItem>
+                        <SelectItem value="admin">Administrator</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {isSuperAdmin && (
                 <div className="space-y-1.5">
-                  <Label>Role</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                  <Label>Organization</Label>
+                  <Select value={orgId} onValueChange={setOrgId}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select an organization" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="user">Member</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
+                      {organizations.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              )}
             </div>
 
             <DialogFooter>

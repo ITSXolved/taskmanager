@@ -3,6 +3,7 @@ import {
   CheckSquare,
   FolderKanban,
   Users,
+  Building2,
   CalendarCheck,
   Bell,
   User,
@@ -18,52 +19,61 @@ export interface NavItem {
   primaryMobile?: boolean; // shown in bottom tab bar
 }
 
+const ALL: Role[] = ["super_admin", "admin", "user"];
+const STAFF: Role[] = ["super_admin", "admin"];
+
 export const NAV_ITEMS: NavItem[] = [
   {
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["admin", "user"],
+    roles: ALL,
     primaryMobile: true,
   },
   {
     label: "Tasks",
     href: "/tasks",
     icon: CheckSquare,
-    roles: ["admin", "user"],
+    roles: ALL,
     primaryMobile: true,
   },
   {
     label: "Projects",
     href: "/projects",
     icon: FolderKanban,
-    roles: ["admin", "user"],
+    roles: ALL,
     primaryMobile: true,
+  },
+  {
+    label: "Organizations",
+    href: "/organizations",
+    icon: Building2,
+    roles: ["super_admin"],
   },
   {
     label: "Team",
     href: "/team",
     icon: Users,
-    roles: ["admin"],
+    roles: STAFF,
     primaryMobile: true,
   },
   {
     label: "Scrum",
     href: "/scrum",
     icon: CalendarCheck,
-    roles: ["admin", "user"],
+    roles: ALL,
   },
   {
     label: "Notifications",
     href: "/notifications",
     icon: Bell,
-    roles: ["admin", "user"],
+    roles: ALL,
   },
   {
     label: "Profile",
     href: "/profile",
     icon: User,
-    roles: ["admin", "user"],
+    roles: ALL,
   },
 ];
 

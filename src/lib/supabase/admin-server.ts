@@ -38,10 +38,23 @@ export async function requireAdmin() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.role !== "admin" || !profile.is_active) {
+  if (
+    !profile ||
+    !profile.is_active ||
+    (profile.role !== "admin" && profile.role !== "super_admin")
+  ) {
     throw new AdminError(403, "Admin privileges required");
   }
-  return { id: user.id };
+  return { id: user.id, role: profile.role };
+}
+
+/** Verify the caller is an active super admin. */
+export async function requireSuperAdmin() {
+  const caller = await requireAdmin();
+  if (caller.role !== "super_admin") {
+    throw new AdminError(403, "Super admin privileges required");
+  }
+  return caller;
 }
 
 export function generateTempPassword(): string {

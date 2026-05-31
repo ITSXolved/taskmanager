@@ -40,8 +40,15 @@ function useCrumbs() {
 }
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
-  const { currentUser, isAdmin, canSwitchRole, switchRole, unreadCount, signOut } =
-    useApp();
+  const {
+    currentUser,
+    isAdmin,
+    actualRole,
+    canSwitchRole,
+    switchRole,
+    unreadCount,
+    signOut,
+  } = useApp();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -99,7 +106,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
             size="sm"
             className="hidden sm:flex"
             title="Switch between Admin and Member view"
-            onClick={() => switchRole(isAdmin ? "user" : "admin")}
+            onClick={() => switchRole(isAdmin ? "user" : actualRole)}
           >
             <Repeat className="h-3.5 w-3.5" />
             Viewing: {isAdmin ? "Admin" : "Member"}
@@ -169,7 +176,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
             </DropdownMenuItem>
             {canSwitchRole && (
               <DropdownMenuItem
-                onSelect={() => switchRole(isAdmin ? "user" : "admin")}
+                onSelect={() => switchRole(isAdmin ? "user" : actualRole)}
               >
                 <Repeat /> View as {isAdmin ? "Member" : "Admin"}
               </DropdownMenuItem>

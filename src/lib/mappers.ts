@@ -4,6 +4,7 @@ import {
   AttachmentRow,
   CommentRow,
   NotificationRow,
+  OrganizationRow,
   ProfileRow,
   ProjectRow,
   TaskRow,
@@ -14,6 +15,7 @@ import {
   Attachment,
   Comment,
   Member,
+  Organization,
   Project,
   Task,
 } from "./types";
@@ -31,7 +33,13 @@ export function mapMember(p: ProfileRow): Member {
     title: p.title ?? "Team Member",
     joinedAt: p.created_at,
     phone: p.phone,
+    orgId: p.org_id,
+    managerId: p.manager_id,
   };
+}
+
+export function mapOrganization(o: OrganizationRow): Organization {
+  return { id: o.id, name: o.name, createdAt: o.created_at };
 }
 
 interface TaskJoin extends TaskRow {

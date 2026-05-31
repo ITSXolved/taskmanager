@@ -22,8 +22,8 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAdmin, currentUser, signOut } = useApp();
-  const items = NAV_ITEMS.filter((i) => i.roles.includes(isAdmin ? "admin" : "user"));
+  const { isAdmin, role, currentUser, signOut } = useApp();
+  const items = NAV_ITEMS.filter((i) => i.roles.includes(role));
 
   if (!currentUser) return null;
 

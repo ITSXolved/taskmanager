@@ -1,4 +1,10 @@
-export type Role = "admin" | "user";
+export type Role = "super_admin" | "admin" | "user";
+
+export interface Organization {
+  id: string;
+  name: string;
+  createdAt: string;
+}
 
 export type Priority = "critical" | "high" | "medium" | "low";
 
@@ -20,6 +26,8 @@ export interface Member {
   title: string;
   joinedAt: string;
   phone?: string | null;
+  orgId?: string | null;
+  managerId?: string | null;
 }
 
 export interface Comment {

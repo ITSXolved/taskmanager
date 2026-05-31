@@ -34,8 +34,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export function AdminDashboard() {
-  const { tasks, members, currentUser, trend } = useApp();
+export function AdminDashboard({
+  tasks: tasksProp,
+  members: membersProp,
+  showHeader = true,
+}: {
+  tasks?: import("@/lib/types").Task[];
+  members?: import("@/lib/types").Member[];
+  showHeader?: boolean;
+} = {}) {
+  const store = useApp();
+  const tasks = tasksProp ?? store.tasks;
+  const members = membersProp ?? store.members;
+  const { currentUser, trend } = store;
   if (!currentUser) return null;
   const stats = taskStats(tasks);
   const upcoming = upcomingDeadlines(tasks).slice(0, 6);
@@ -66,7 +77,9 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title={`Welcome back, ${currentUser.name.split(" ")[0]} 👋`} />
+      {showHeader && (
+        <PageHeader title={`Welcome back, ${currentUser.name.split(" ")[0]} 👋`} />
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
