@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   ReactNode,
 } from "react";
 import {
@@ -62,7 +63,10 @@ interface AppState {
   ready: boolean;
   currentUser: Member | null;
   role: Role;
+  actualRole: Role;
   isAdmin: boolean;
+  canSwitchRole: boolean;
+  switchRole: (role: Role) => void;
   members: Member[];
   tasks: Task[];
   projects: Project[];
@@ -90,6 +94,7 @@ const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
+  const [viewAs, setViewAs] = useState<Role | null>(null);
 
   // ---- Auth + profile -----------------------------------------------------
   const { data: profile } = useQuery({
@@ -115,9 +120,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        setViewAs(null); // never carry an admin's "view as" across sessions
         qc.clear();
+      } else if (event === "SIGNED_IN") {
+        setViewAs(null); // always start a fresh login in the real role
+        qc.invalidateQueries();
       } else {
-        // INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED
+        // INITIAL_SESSION, TOKEN_REFRESHED, USER_UPDATED
         qc.invalidateQueries();
       }
     });
@@ -226,9 +235,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => (profile ? mapMember(profile) : null),
     [profile]
   );
-  const role: Role = profile?.role ?? "user";
+
+  // Actual role from the profile vs. the role the admin is currently *viewing*.
+  // Only real admins may preview the member view; members are locked to "user".
+  const actualRole: Role = profile?.role ?? "user";
+  const canSwitchRole = actualRole === "admin";
+  const role: Role = canSwitchRole ? viewAs ?? "admin" : "user";
   const isAdmin = role === "admin";
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Reset the view override whenever the signed-in account changes.
+  useEffect(() => {
+    setViewAs(null);
+  }, [profile?.id]);
 
   const memberMap = useMemo(
     () => new Map(members.map((m) => [m.id, m])),
@@ -401,7 +420,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ready: !!profile,
     currentUser,
     role,
+    actualRole,
     isAdmin,
+    canSwitchRole,
+    switchRole: (r: Role) => {
+      if (canSwitchRole) setViewAs(r);
+    },
     members,
     tasks,
     projects,
