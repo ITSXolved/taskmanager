@@ -108,6 +108,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // React to auth changes so a new login never shows the previous session's
+  // cached profile/data (wrong role, stale workspace).
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        qc.clear();
+      } else {
+        // INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED
+        qc.invalidateQueries();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [qc]);
+
   const userId = profile?.id ?? null;
   const enabled = !!userId;
 

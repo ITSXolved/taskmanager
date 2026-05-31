@@ -8,6 +8,8 @@ import {
   Power,
   Eye,
   ShieldAlert,
+  ShieldCheck,
+  UserCog,
   MessageCircle,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -28,7 +30,7 @@ import {
 import { AddMemberModal } from "@/components/team/add-member-modal";
 import { MemberDetailPanel } from "@/components/team/member-detail-panel";
 import { Member } from "@/lib/types";
-import { resetPassword, setUserActive } from "@/lib/admin-api";
+import { resetPassword, setUserActive, setUserRole } from "@/lib/admin-api";
 import { credentialsMessage, whatsappUrl } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
@@ -198,6 +200,25 @@ export default function TeamPage() {
               }}
             >
               <KeyRound /> Reset password
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={async () => {
+                const nextRole = m.role === "admin" ? "user" : "admin";
+                try {
+                  await setUserRole(m.id, nextRole);
+                  refreshMembers();
+                  toast.success(
+                    nextRole === "admin"
+                      ? `${m.name} is now an Administrator`
+                      : `${m.name} is now a Member`
+                  );
+                } catch (err) {
+                  toast.error((err as Error).message || "Role update failed");
+                }
+              }}
+            >
+              {m.role === "admin" ? <UserCog /> : <ShieldCheck />}
+              {m.role === "admin" ? "Make member" : "Make admin"}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

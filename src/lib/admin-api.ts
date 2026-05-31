@@ -43,3 +43,10 @@ export function setUserActive(
     is_active: isActive,
   });
 }
+
+export function setUserRole(
+  userId: string,
+  role: Role
+): Promise<{ user_id: string; role: Role }> {
+  return post("/api/admin/set-role", { user_id: userId, role });
+}
