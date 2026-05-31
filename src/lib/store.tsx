@@ -13,6 +13,7 @@ import {
   useQueryClient,
   QueryClient,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import {
   mapMember,
@@ -328,7 +329,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (patch.dueDate !== undefined) db.due_date = patch.dueDate;
     if (patch.blocked !== undefined) db.is_blocked = patch.blocked;
     if (patch.projectId !== undefined) db.project_id = patch.projectId;
-    await supabase.from("tasks").update(db).eq("id", id);
+    // optimistic update for instant feedback
+    qc.setQueryData<Task[]>(["tasks"], (old) =>
+      (old ?? []).map((t) => (t.id === id ? { ...t, ...patch } : t))
+    );
+    const { error } = await supabase.from("tasks").update(db).eq("id", id);
+    if (error) toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["tasks"] });
   }
 

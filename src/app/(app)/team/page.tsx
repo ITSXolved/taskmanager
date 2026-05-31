@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UserCog,
   MessageCircle,
+  Trash2,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { PageHeader } from "@/components/shared/page-header";
@@ -29,8 +30,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AddMemberModal } from "@/components/team/add-member-modal";
 import { MemberDetailPanel } from "@/components/team/member-detail-panel";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Member } from "@/lib/types";
-import { resetPassword, setUserActive, setUserRole } from "@/lib/admin-api";
+import {
+  resetPassword,
+  setUserActive,
+  setUserRole,
+  deleteUser,
+} from "@/lib/admin-api";
 import { credentialsMessage, whatsappUrl } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
@@ -40,6 +47,7 @@ export default function TeamPage() {
   const [selected, setSelected] = useState<Member | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [waBusy, setWaBusy] = useState<string | null>(null);
+  const [toDelete, setToDelete] = useState<Member | null>(null);
 
   // Resets the member's password to a fresh temp one and opens WhatsApp with
   // the credentials + login URL. The tab is opened synchronously (before the
@@ -237,6 +245,9 @@ export default function TeamPage() {
             >
               <Power /> {m.active ? "Deactivate" : "Reactivate"}
             </DropdownMenuItem>
+            <DropdownMenuItem destructive onSelect={() => setToDelete(m)}>
+              <Trash2 /> Delete member
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         </div>
@@ -263,6 +274,24 @@ export default function TeamPage() {
         member={selected}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+      />
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(v) => !v && setToDelete(null)}
+        title={`Delete ${toDelete?.name ?? "member"}?`}
+        description="This permanently deletes the account and revokes access. Tasks they created remain, but their assignments are removed. This cannot be undone."
+        confirmLabel="Delete member"
+        onConfirm={async () => {
+          if (!toDelete) return;
+          try {
+            await deleteUser(toDelete.id);
+            refreshMembers();
+            toast.success(`${toDelete.name} deleted`);
+            setToDelete(null);
+          } catch (err) {
+            toast.error((err as Error).message || "Delete failed");
+          }
+        }}
       />
     </div>
   );

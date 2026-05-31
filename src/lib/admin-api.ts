@@ -50,3 +50,9 @@ export function setUserRole(
 ): Promise<{ user_id: string; role: Role }> {
   return post("/api/admin/set-role", { user_id: userId, role });
 }
+
+export function deleteUser(
+  userId: string
+): Promise<{ user_id: string; deleted: boolean }> {
+  return post("/api/admin/delete-user", { user_id: userId });
+}

@@ -45,14 +45,17 @@ export function RichTextEditor({
   onChange,
   placeholder = "Write something…",
   className,
+  editable = true,
 }: {
   content?: string;
   onChange?: (html: string) => void;
   placeholder?: string;
   className?: string;
+  editable?: boolean;
 }) {
   const editor = useEditor({
     immediatelyRender: false,
+    editable,
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder }),
@@ -82,6 +85,7 @@ export function RichTextEditor({
         className
       )}
     >
+      {editable && (
       <div className="flex items-center gap-0.5 border-b border-border bg-muted/40 px-1.5 py-1">
         <ToolbarButton
           active={editor.isActive("bold")}
@@ -129,6 +133,7 @@ export function RichTextEditor({
           <Quote />
         </ToolbarButton>
       </div>
+      )}
       <EditorContent editor={editor} />
     </div>
   );

@@ -5,12 +5,14 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import {
   Activity,
+  AlertTriangle,
   CalendarDays,
   CheckCircle2,
   MessageSquare,
   Paperclip,
   Send,
   Tag,
+  Trash2,
   Upload,
   Users,
 } from "lucide-react";
@@ -30,9 +32,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/misc";
 import { RichTextEditor } from "@/components/shared/rich-text-editor";
 import { CommentBubble } from "@/components/shared/comment-bubble";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { FileAttachmentRow } from "@/components/shared/file-row";
 import { PriorityBadge } from "@/components/shared/badges";
 import { AvatarGroup } from "@/components/shared/avatar-group";
@@ -49,7 +53,7 @@ import { cn } from "@/lib/utils";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export function TaskDetailPanel({
-  task,
+  task: taskProp,
   open,
   onOpenChange,
 }: {
@@ -58,18 +62,25 @@ export function TaskDetailPanel({
   onOpenChange: (v: boolean) => void;
 }) {
   const {
+    tasks,
     isAdmin,
     members,
     projects,
     getMember,
     updateTask,
+    deleteTask,
     addComment,
     addAttachment,
     removeAttachment,
   } = useApp();
   const [tab, setTab] = useState<"comments" | "activity">("comments");
   const [comment, setComment] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Always render the live task from the store so edits (due date, status,
+  // comments, attachments) reflect immediately instead of a stale snapshot.
+  const task = tasks.find((t) => t.id === taskProp?.id) ?? taskProp;
 
   if (!task) return null;
   const assignees = members.filter((m) => task.assigneeIds.includes(m.id));
@@ -125,6 +136,17 @@ export function TaskDetailPanel({
           <DialogTitle className="text-left text-xl leading-snug">
             {task.title}
           </DialogTitle>
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-1 w-fit text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete task
+            </Button>
+          )}
         </DialogHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
@@ -153,6 +175,7 @@ export function TaskDetailPanel({
             <Field icon={Activity} label="Priority">
               <Select
                 value={task.priority}
+                disabled={!isAdmin}
                 onValueChange={(v) =>
                   updateTask(task.id, { priority: v as Priority })
                 }
@@ -174,6 +197,7 @@ export function TaskDetailPanel({
               <Input
                 type="date"
                 className="h-9"
+                disabled={!isAdmin}
                 value={format(new Date(task.dueDate), "yyyy-MM-dd")}
                 onChange={(e) =>
                   updateTask(task.id, {
@@ -193,6 +217,44 @@ export function TaskDetailPanel({
                 )}
               </div>
             </Field>
+          </div>
+
+          {/* Blocker flag — assignees & admins can raise/clear it */}
+          <div
+            className={cn(
+              "flex items-center justify-between rounded-xl border p-3 transition-colors",
+              task.blocked
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-border"
+            )}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg",
+                  task.blocked
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Blocker</p>
+                <p className="text-xs text-muted-foreground">
+                  {task.blocked
+                    ? "Flagged as blocked — shows in Scrum blockers"
+                    : "Flag this task if you're blocked"}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={task.blocked}
+              onCheckedChange={(v) => {
+                updateTask(task.id, { blocked: v });
+                toast.success(v ? "Flagged as blocked" : "Blocker cleared");
+              }}
+            />
           </div>
 
           {/* Categories */}
@@ -218,6 +280,7 @@ export function TaskDetailPanel({
             <RichTextEditor
               content={`<p>${task.description}</p>`}
               placeholder="Add a description…"
+              editable={isAdmin}
             />
           </div>
 
@@ -227,39 +290,53 @@ export function TaskDetailPanel({
               <FieldLabel icon={Paperclip} className="mb-0">
                 Attachments ({task.attachments.length})
               </FieldLabel>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInput.current?.click()}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Upload
-              </Button>
-              <input
-                ref={fileInput}
-                type="file"
-                className="hidden"
-                accept="image/*,.pdf,.docx,.xlsx,.txt,.zip"
-                onChange={handleUpload}
-              />
+              {isAdmin && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    Upload
+                  </Button>
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf,.docx,.xlsx,.txt,.zip"
+                    onChange={handleUpload}
+                  />
+                </>
+              )}
             </div>
             <div className="space-y-2">
               {task.attachments.length === 0 ? (
-                <button
-                  onClick={() => fileInput.current?.click()}
-                  className="w-full rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                >
-                  Click to upload a file (max 50MB)
-                </button>
+                isAdmin ? (
+                  <button
+                    onClick={() => fileInput.current?.click()}
+                    className="w-full rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                  >
+                    Click to upload a file (max 50MB)
+                  </button>
+                ) : (
+                  <p className="rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+                    No attachments
+                  </p>
+                )
               ) : (
                 task.attachments.map((f) => (
                   <FileAttachmentRow
                     key={f.id}
                     file={f}
-                    onDelete={async () => {
-                      await removeAttachment(f.id, f.path);
-                      toast.success("Attachment removed");
-                    }}
+                    onDelete={
+                      isAdmin
+                        ? async () => {
+                            await removeAttachment(f.id, f.path);
+                            toast.success("Attachment removed");
+                          }
+                        : undefined
+                    }
                   />
                 ))
               )}
@@ -363,6 +440,23 @@ export function TaskDetailPanel({
           </div>
         )}
       </DialogContent>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this task?"
+        description="This permanently removes the task, its comments, attachments, and activity. This cannot be undone."
+        confirmLabel="Delete task"
+        onConfirm={async () => {
+          try {
+            await deleteTask(task.id);
+            toast.success("Task deleted");
+            onOpenChange(false);
+          } catch {
+            toast.error("Failed to delete task");
+          }
+        }}
+      />
     </Dialog>
   );
 }

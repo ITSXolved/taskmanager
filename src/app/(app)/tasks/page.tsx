@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { KanbanSquare, List, Plus, SlidersHorizontal, Inbox } from "lucide-react";
+import {
+  KanbanSquare,
+  List,
+  Plus,
+  SlidersHorizontal,
+  Inbox,
+  AlertTriangle,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
 import { PageHeader } from "@/components/shared/page-header";
 import { SearchInput } from "@/components/shared/search-input";
@@ -11,13 +18,14 @@ import { PriorityBadge, StatusChip } from "@/components/shared/badges";
 import { AvatarGroup } from "@/components/shared/avatar-group";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Column, DataTable } from "@/components/shared/data-table";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
 import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
 import { CreateTaskDrawer } from "@/components/tasks/create-task-drawer";
 import { Priority, PRIORITY_META, Task, TaskStatus, STATUS_META } from "@/lib/types";
-import { isOverdue } from "@/lib/analytics";
+import { isOverdue, NOW } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 const priorityRank: Record<Priority, number> = {
@@ -27,12 +35,36 @@ const priorityRank: Record<Priority, number> = {
   low: 3,
 };
 
+type DueBucket = "overdue" | "today" | "week" | "later";
+
+const DUE_OPTIONS: { value: DueBucket; label: string }[] = [
+  { value: "overdue", label: "Overdue" },
+  { value: "today", label: "Due Today" },
+  { value: "week", label: "This Week" },
+  { value: "later", label: "Later" },
+];
+
+function dueBucket(dueDate: string): DueBucket {
+  const startOfToday = new Date(NOW).setHours(0, 0, 0, 0);
+  const endOfToday = new Date(NOW).setHours(23, 59, 59, 999);
+  const due = new Date(dueDate).getTime();
+  if (due < startOfToday) return "overdue";
+  if (due <= endOfToday) return "today";
+  if (due <= endOfToday + 7 * 86400000) return "week";
+  return "later";
+}
+
 export default function TasksPage() {
   const { tasks, members, isAdmin, currentUser } = useApp();
   const [view, setView] = useState<"list" | "board">("board");
   const [search, setSearch] = useState("");
   const [priorities, setPriorities] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
+  const [dueStatuses, setDueStatuses] = useState<string[]>([]);
+  const [blockedOnly, setBlockedOnly] = useState(false);
+  const [assignees, setAssignees] = useState<string[]>([]);
+  const [dueFrom, setDueFrom] = useState("");
+  const [dueTo, setDueTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Task | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -50,14 +82,56 @@ export default function TasksPage() {
   );
 
   const filtered = useMemo(() => {
+    const from = dueFrom ? new Date(dueFrom).setHours(0, 0, 0, 0) : null;
+    const to = dueTo ? new Date(dueTo).setHours(23, 59, 59, 999) : null;
     return scoped.filter((t) => {
       if (search && !t.title.toLowerCase().includes(search.toLowerCase()))
         return false;
       if (priorities.length && !priorities.includes(t.priority)) return false;
       if (statuses.length && !statuses.includes(t.status)) return false;
+      if (dueStatuses.length && !dueStatuses.includes(dueBucket(t.dueDate)))
+        return false;
+      if (blockedOnly && !t.blocked) return false;
+      if (
+        assignees.length &&
+        !t.assigneeIds.some((id) => assignees.includes(id))
+      )
+        return false;
+      const due = new Date(t.dueDate).getTime();
+      if (from !== null && due < from) return false;
+      if (to !== null && due > to) return false;
       return true;
     });
-  }, [scoped, search, priorities, statuses]);
+  }, [
+    scoped,
+    search,
+    priorities,
+    statuses,
+    dueStatuses,
+    blockedOnly,
+    assignees,
+    dueFrom,
+    dueTo,
+  ]);
+
+  const activeFilterCount =
+    priorities.length +
+    statuses.length +
+    dueStatuses.length +
+    assignees.length +
+    (blockedOnly ? 1 : 0) +
+    (dueFrom ? 1 : 0) +
+    (dueTo ? 1 : 0);
+
+  function clearFilters() {
+    setPriorities([]);
+    setStatuses([]);
+    setDueStatuses([]);
+    setBlockedOnly(false);
+    setAssignees([]);
+    setDueFrom("");
+    setDueTo("");
+  }
 
   function openTask(t: Task) {
     setSelected(t);
@@ -178,9 +252,9 @@ export default function TasksPage() {
           >
             <SlidersHorizontal className="h-4 w-4" />
             Filters
-            {priorities.length + statuses.length > 0 && (
+            {activeFilterCount > 0 && (
               <span className="ml-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                {priorities.length + statuses.length}
+                {activeFilterCount}
               </span>
             )}
           </Button>
@@ -212,6 +286,81 @@ export default function TasksPage() {
                 selected={statuses}
                 onToggle={(v) => toggle(statuses, setStatuses, v)}
               />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Due status
+              </p>
+              <FilterChipGroup
+                options={DUE_OPTIONS}
+                selected={dueStatuses}
+                onToggle={(v) => toggle(dueStatuses, setDueStatuses, v)}
+              />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Flags
+              </p>
+              <button
+                onClick={() => setBlockedOnly((b) => !b)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+                  blockedOnly
+                    ? "border-destructive bg-destructive/10 text-destructive"
+                    : "border-border bg-card text-muted-foreground hover:border-destructive/40 hover:text-foreground"
+                )}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                Blocked only
+              </button>
+            </div>
+            {isAdmin && (
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Assignee
+                </p>
+                <FilterChipGroup
+                  options={members
+                    .filter((m) => m.active)
+                    .map((m) => ({ value: m.id, label: m.name }))}
+                  selected={assignees}
+                  onToggle={(v) => toggle(assignees, setAssignees, v)}
+                />
+              </div>
+            )}
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Due date range
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="date"
+                  value={dueFrom}
+                  max={dueTo || undefined}
+                  onChange={(e) => setDueFrom(e.target.value)}
+                  className="h-9 w-auto"
+                  aria-label="Due date from"
+                />
+                <span className="text-sm text-muted-foreground">to</span>
+                <Input
+                  type="date"
+                  value={dueTo}
+                  min={dueFrom || undefined}
+                  onChange={(e) => setDueTo(e.target.value)}
+                  className="h-9 w-auto"
+                  aria-label="Due date to"
+                />
+                {activeFilterCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={clearFilters}
+                  >
+                    Clear all
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}

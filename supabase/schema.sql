@@ -1,8 +1,4 @@
--- ============================================================================
--- TeamFlow — Consolidated database migration
--- Run top-to-bottom in the Supabase SQL editor, or use the split files in
--- supabase/migrations/ with: supabase db push
--- ============================================================================
+-- TeamFlow — Consolidated database migration (run top-to-bottom)
 
 
 -- >>> 20260101000000_schema.sql
@@ -867,6 +863,72 @@ begin
     coalesce((new.raw_user_meta_data ->> 'must_change_password')::boolean, true)
   )
   on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+
+-- >>> 20260101000800_task_edit_guard.sql
+-- ============================================================================
+-- Assignees may only change a task's status. Admins and the task creator can
+-- edit any field. Enforced at the DB level (defense in depth beyond the UI).
+-- ============================================================================
+
+create or replace function public.guard_task_field_edits()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  -- Admins and the creator can edit anything.
+  if public.is_admin() or old.created_by = auth.uid() then
+    return new;
+  end if;
+
+  -- Otherwise (assignee): only status may change. completed_at / updated_at are
+  -- set by other triggers as a side effect of the status change and are allowed.
+  if new.title       is distinct from old.title
+     or new.description is distinct from old.description
+     or new.priority   is distinct from old.priority
+     or new.due_date   is distinct from old.due_date
+     or new.project_id is distinct from old.project_id
+     or new.is_blocked is distinct from old.is_blocked then
+    raise exception 'Assignees can only change task status';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_guard_task_field_edits on public.tasks;
+create trigger trg_guard_task_field_edits
+  before update on public.tasks
+  for each row execute function public.guard_task_field_edits();
+
+
+-- >>> 20260101000900_assignee_blockers.sql
+-- ============================================================================
+-- Allow assignees to flag/unflag a task as blocked (is_blocked), in addition to
+-- changing status. All other fields remain admin/creator only.
+-- ============================================================================
+
+create or replace function public.guard_task_field_edits()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if public.is_admin() or old.created_by = auth.uid() then
+    return new;
+  end if;
+
+  -- Assignee: only status and the blocked flag may change.
+  if new.title       is distinct from old.title
+     or new.description is distinct from old.description
+     or new.priority   is distinct from old.priority
+     or new.due_date   is distinct from old.due_date
+     or new.project_id is distinct from old.project_id then
+    raise exception 'Assignees can only change task status or the blocked flag';
+  end if;
+
   return new;
 end;
 $$;
