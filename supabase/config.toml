@@ -1,0 +1,63 @@
+# TeamFlow — Supabase local/project configuration
+# Docs: https://supabase.com/docs/guides/cli/config
+
+project_id = "teamflow"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+# Global cap; per-bucket limits are set in the storage migration.
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = false            # users are provisioned by admins via the create-user edge function
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+double_confirm_changes = true
+
+# ---- Edge Functions ----
+[functions.create-user]
+verify_jwt = true
+
+[functions.reset-password]
+verify_jwt = true
+
+[functions.deactivate-user]
+verify_jwt = true
+
+[functions.send-deadline-reminders]
+# Invoked by the scheduler / cron with the service role key, no end-user JWT.
+verify_jwt = false

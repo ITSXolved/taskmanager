@@ -1,0 +1,248 @@
+"use client";
+
+import { useState } from "react";
+import {
+  MoreVertical,
+  Plus,
+  KeyRound,
+  Power,
+  Eye,
+  ShieldAlert,
+  MessageCircle,
+} from "lucide-react";
+import { useApp } from "@/lib/store";
+import { PageHeader } from "@/components/shared/page-header";
+import { Column, DataTable } from "@/components/shared/data-table";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AddMemberModal } from "@/components/team/add-member-modal";
+import { MemberDetailPanel } from "@/components/team/member-detail-panel";
+import { Member } from "@/lib/types";
+import { resetPassword, setUserActive } from "@/lib/admin-api";
+import { credentialsMessage, whatsappUrl } from "@/lib/whatsapp";
+import { toast } from "sonner";
+
+export default function TeamPage() {
+  const { members, isAdmin, tasks, refreshMembers } = useApp();
+  const [addOpen, setAddOpen] = useState(false);
+  const [selected, setSelected] = useState<Member | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [waBusy, setWaBusy] = useState<string | null>(null);
+
+  // Resets the member's password to a fresh temp one and opens WhatsApp with
+  // the credentials + login URL. The tab is opened synchronously (before the
+  // await) so popup blockers don't intercept it.
+  async function sendWhatsApp(m: Member) {
+    if (!m.phone) {
+      toast.error("No WhatsApp number on file for this member");
+      return;
+    }
+    const win = window.open("", "_blank");
+    setWaBusy(m.id);
+    try {
+      const res = await resetPassword(m.id);
+      const url = whatsappUrl(
+        m.phone,
+        credentialsMessage({
+          name: m.name,
+          email: m.email,
+          password: res.tempPassword,
+        })
+      );
+      if (url && win) win.location.href = url;
+      else if (url) window.open(url, "_blank");
+      toast.success(`New credentials sent to ${m.name} via WhatsApp`);
+    } catch (err) {
+      win?.close();
+      toast.error((err as Error).message || "Failed to send");
+    } finally {
+      setWaBusy(null);
+    }
+  }
+
+  if (!isAdmin) {
+    return (
+      <Card>
+        <EmptyState
+          icon={ShieldAlert}
+          title="Admin access required"
+        />
+      </Card>
+    );
+  }
+
+  function open(m: Member) {
+    setSelected(m);
+    setDetailOpen(true);
+  }
+
+  const columns: Column<Member>[] = [
+    {
+      key: "name",
+      header: "Member",
+      sortable: true,
+      sortValue: (m) => m.name,
+      render: (m) => (
+        <div className="flex items-center gap-3">
+          <Avatar name={m.name} color={m.avatarColor} size="sm" />
+          <div className="min-w-0">
+            <p className="font-medium">{m.name}</p>
+            <p className="text-xs text-muted-foreground">{m.email}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "title",
+      header: "Title",
+      sortable: true,
+      sortValue: (m) => m.title,
+      render: (m) => <span className="text-sm">{m.title}</span>,
+    },
+    {
+      key: "role",
+      header: "Role",
+      render: (m) => (
+        <Badge variant={m.role === "admin" ? "default" : "secondary"}>
+          {m.role === "admin" ? "Admin" : "Member"}
+        </Badge>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      sortValue: (m) => (m.active ? 0 : 1),
+      render: (m) => (
+        <Badge variant={m.active ? "success" : "destructive"}>
+          {m.active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      key: "tasks",
+      header: "Tasks",
+      sortable: true,
+      sortValue: (m) =>
+        tasks.filter((t) => t.assigneeIds.includes(m.id)).length,
+      render: (m) => (
+        <span className="font-medium tabular-nums">
+          {tasks.filter((t) => t.assigneeIds.includes(m.id)).length}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "w-20",
+      render: (m) => (
+        <div className="flex items-center justify-end gap-1">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title={
+            m.phone
+              ? "Send login details via WhatsApp"
+              : "No WhatsApp number on file"
+          }
+          loading={waBusy === m.id}
+          disabled={!m.phone}
+          className="text-[#25D366] hover:bg-[#25D366]/10 hover:text-[#1ebe57] disabled:text-muted-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            sendWhatsApp(m);
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={() => open(m)}>
+              <Eye /> View details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!m.phone}
+              onSelect={() => sendWhatsApp(m)}
+            >
+              <MessageCircle /> Send login via WhatsApp
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={async () => {
+                try {
+                  const res = await resetPassword(m.id);
+                  toast.success(`New temp password: ${res.tempPassword}`, {
+                    duration: 10000,
+                  });
+                } catch (err) {
+                  toast.error((err as Error).message || "Reset failed");
+                }
+              }}
+            >
+              <KeyRound /> Reset password
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              destructive
+              onSelect={async () => {
+                try {
+                  await setUserActive(m.id, !m.active);
+                  refreshMembers();
+                  toast.success(
+                    m.active ? "Member deactivated" : "Member reactivated"
+                  );
+                } catch (err) {
+                  toast.error((err as Error).message || "Update failed");
+                }
+              }}
+            >
+              <Power /> {m.active ? "Deactivate" : "Reactivate"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Team"
+        actions={
+          <Button onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Add Member</span>
+          </Button>
+        }
+      />
+
+      <DataTable columns={columns} data={members} onRowClick={open} pageSize={10} />
+
+      <AddMemberModal open={addOpen} onOpenChange={setAddOpen} />
+      <MemberDetailPanel
+        member={selected}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
+    </div>
+  );
+}
