@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Building2, Plus, ShieldAlert, Users } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
