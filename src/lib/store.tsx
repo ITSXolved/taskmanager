@@ -40,6 +40,7 @@ import {
   ProfileRow,
   ProjectRow,
   TaskRow,
+  ScrumCancellationRow,
 } from "@/lib/database.types";
 
 const supabase = getSupabaseBrowser();
@@ -76,6 +77,7 @@ interface AppState {
   createOrganization: (name: string) => Promise<void>;
   tasks: Task[];
   projects: Project[];
+  scrumCancellations: ScrumCancellationRow[];
   notifications: AppNotification[];
   unreadCount: number;
   trend: { date: string; completed: number; created: number }[];
@@ -93,6 +95,8 @@ interface AppState {
   refreshMembers: () => void;
   markNotificationRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  cancelScrumMeeting: (date: string, timeSlot: string, reason: string | null) => Promise<void>;
+  restoreScrumMeeting: (date: string, timeSlot: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -236,6 +240,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // ---- Scrum cancellations ------------------------------------------------
+  const { data: scrumCancellations = [] } = useQuery({
+    queryKey: ["scrum-cancellations"],
+    enabled,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("scrum_cancellations")
+        .select("*");
+      return (data ?? []) as ScrumCancellationRow[];
+    },
+  });
+
   // Derive project members from task assignees of each project.
   const projects: Project[] = useMemo(
     () =>
@@ -306,6 +322,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           filter: `user_id=eq.${userId}`,
         },
         () => qc.invalidateQueries({ queryKey: ["notifications"] })
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "scrum_cancellations" },
+        () => qc.invalidateQueries({ queryKey: ["scrum-cancellations"] })
       )
       .subscribe();
 
@@ -444,6 +465,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .eq("is_read", false);
   }
 
+  async function cancelScrumMeeting(date: string, timeSlot: string, reason: string | null) {
+    if (!currentUser?.orgId) {
+      toast.error("User does not belong to an organization");
+      return;
+    }
+    const { error } = await supabase.from("scrum_cancellations").upsert(
+      {
+        org_id: currentUser.orgId,
+        date,
+        time_slot: timeSlot,
+        reason,
+        cancelled_by: userId,
+      },
+      { onConflict: "org_id,date,time_slot" }
+    );
+    if (error) {
+      toast.error(error.message);
+      throw error;
+    }
+    qc.invalidateQueries({ queryKey: ["scrum-cancellations"] });
+  }
+
+  async function restoreScrumMeeting(date: string, timeSlot: string) {
+    if (!currentUser?.orgId) {
+      toast.error("User does not belong to an organization");
+      return;
+    }
+    const { error } = await supabase
+      .from("scrum_cancellations")
+      .delete()
+      .eq("org_id", currentUser.orgId)
+      .eq("date", date)
+      .eq("time_slot", timeSlot);
+    if (error) {
+      toast.error(error.message);
+      throw error;
+    }
+    qc.invalidateQueries({ queryKey: ["scrum-cancellations"] });
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     qc.clear();
@@ -465,6 +526,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     createOrganization,
     tasks,
     projects,
+    scrumCancellations,
     notifications,
     unreadCount,
     trend,
@@ -481,6 +543,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refreshMembers,
     markNotificationRead,
     markAllRead,
+    cancelScrumMeeting,
+    restoreScrumMeeting,
     signOut,
   };
 

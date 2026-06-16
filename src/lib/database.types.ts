@@ -35,6 +35,49 @@ export type OrganizationRow = {
   created_at: string;
 }
 
+export type AttendanceStatus = "present" | "absent" | "leave";
+
+export type AttendanceSettingsRow = {
+  org_id: string;
+  expected_time: string;
+  grace_minutes: number;
+  work_days: number[];
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export type AttendanceExemptionRow = {
+  id: string;
+  org_id: string;
+  date: string;
+  expected_time: string | null;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export type AttendanceRecordRow = {
+  id: string;
+  org_id: string | null;
+  user_id: string;
+  date: string;
+  status: AttendanceStatus;
+  check_in_time: string | null;
+  marked_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ScrumCancellationRow = {
+  id: string;
+  org_id: string;
+  date: string;
+  time_slot: string;
+  reason: string | null;
+  cancelled_by: string | null;
+  created_at: string;
+}
+
 export type ProjectRow = {
   id: string;
   title: string;
@@ -148,6 +191,10 @@ export type Database = {
       attachments: Row<AttachmentRow>;
       activity_logs: Row<ActivityLogRow>;
       notifications: Row<NotificationRow>;
+      attendance_settings: Row<AttendanceSettingsRow>;
+      attendance_exemptions: Row<AttendanceExemptionRow>;
+      attendance_records: Row<AttendanceRecordRow>;
+      scrum_cancellations: Row<ScrumCancellationRow>;
     };
     Views: {
       scrum_daily_summary: {

@@ -5,6 +5,7 @@ import {
   Users,
   Building2,
   CalendarCheck,
+  CalendarClock,
   Bell,
   User,
   LucideIcon,
@@ -61,6 +62,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Scrum",
     href: "/scrum",
     icon: CalendarCheck,
+    roles: ALL,
+  },
+  {
+    label: "Attendance",
+    href: "/attendance",
+    icon: CalendarClock,
     roles: ALL,
   },
   {
