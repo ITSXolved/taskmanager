@@ -83,7 +83,7 @@ export default function LoginPage() {
             <Layers className="h-7 w-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Welcome to <span className="gradient-text">TeamFlow</span>
+            Welcome to <span className="gradient-text">Ayadi Work Flow</span>
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Sign in to your workspace to continue
@@ -155,7 +155,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          © 2026 TeamFlow. Enterprise task management.
+          © 2026 Ayadi Work Flow. Enterprise task management.
         </p>
       </div>
 

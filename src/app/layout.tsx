@@ -15,7 +15,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TeamFlow — Task Management & Collaboration",
+  title: "Ayadi Work Flow — Task Management & Collaboration",
   description:
     "Enterprise-grade team task management and project collaboration platform.",
 };

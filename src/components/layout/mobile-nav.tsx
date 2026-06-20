@@ -85,7 +85,7 @@ export function MobileDrawer({
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-chart-5">
               <Layers className="h-5 w-5 text-white" />
             </div>
-            <p className="text-base font-bold">TeamFlow</p>
+            <p className="text-base font-bold">Ayadi Work Flow</p>
           </div>
           <button
             onClick={onClose}

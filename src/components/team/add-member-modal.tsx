@@ -193,7 +193,7 @@ export function AddMemberModal({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="jane.doe@teamflow.io"
+                  placeholder="jane.doe@ayadiworkflow.io"
                 />
               </div>
               <div className="space-y-1.5">

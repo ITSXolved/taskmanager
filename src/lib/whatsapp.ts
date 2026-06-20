@@ -15,7 +15,7 @@ export function credentialsMessage(opts: {
   password: string;
 }): string {
   return (
-    `Hi ${opts.name}, your TeamFlow account is ready.\n\n` +
+    `Hi ${opts.name}, your Ayadi Work Flow account is ready.\n\n` +
     `Login email: ${opts.email}\n` +
     `Temporary password: ${opts.password}\n\n` +
     `Sign in at ${appUrl()}/login — you'll be asked to set a new password on first login.`

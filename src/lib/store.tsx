@@ -294,7 +294,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel("teamflow-realtime")
+      .channel("ayadi-workflow-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "tasks" },

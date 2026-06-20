@@ -47,7 +47,7 @@ export function Sidebar({
         {!collapsed && (
           <div className="animate-fade-in">
             <p className="text-base font-bold leading-none tracking-tight">
-              TeamFlow
+              Ayadi Work Flow
             </p>
             <p className="mt-1 text-[10px] uppercase tracking-widest text-sidebar-muted">
               Workspace
