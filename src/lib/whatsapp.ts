@@ -18,7 +18,7 @@ export function credentialsMessage(opts: {
     `Hi ${opts.name}, your Ayadi Work Flow account is ready.\n\n` +
     `Login email: ${opts.email}\n` +
     `Temporary password: ${opts.password}\n\n` +
-    `Sign in at ${appUrl()}/login — you'll be asked to set a new password on first login.`
+    `Sign in at https://taskmanager-vert-gamma.vercel.app/login — you'll be asked to set a new password on first login.`
   );
 }
 
